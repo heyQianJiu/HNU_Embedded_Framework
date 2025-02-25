@@ -14,8 +14,7 @@
 #define DBG_LVL DBG_INFO
 #include <rtdbg.h>
 
-static int debug_ref1,debug_ref2;
-static int debug_mode;
+
 /* -------------------------------- 线程间通讯话题相关 ------------------------------- */
 static struct shoot_cmd_msg shoot_cmd;
 static struct shoot_fdb_msg shoot_fdb;
@@ -28,25 +27,20 @@ static void shoot_sub_init(void);
 static void shoot_pub_push(void);
 static void shoot_sub_pull(void);
 /* -------------------------------- 线程间通讯话题相关 ------------------------------- */
-static int shoot_cnt;
+// static int shoot_cnt;
 static int shoot_flag;
 /*发射模块电机使用数量*/
-// #define SHT_MOTOR_NUM 3
 #define SHT_MOTOR_NUM 4
 
 #define SHOOT_MOTOR1 0
 #define SHOOT_MOTOR2 1
 #define SHOOT_MOTOR3 2
 #define SHOOT_MOTOR4 3
-
-#define LOAD_MOTOR 4
-// #define LOAD_MOTOR 6//GM2006供弹
-
+#define LOAD_MOTOR 4//GM2006供弹
 
 /*pid环数结构体*/
 static struct shoot_controller_t{
     pid_obj_t *pid_speed;
-    pid_obj_t *pid_angle;
 }sht_controller[SHT_MOTOR_NUM];
 static struct load_controller_t{
     pid_obj_t *pid_speed;
@@ -90,6 +84,7 @@ static dji_motor_object_t *sht_motor[SHT_MOTOR_NUM];  // 发射器电机实例
 static float shoot_motor_ref[SHT_MOTOR_NUM]; // 电机控制期望值
 static dji_motor_object_t *load_motor;//供弹电机实例
 static float load_ref_rpm, load_ref_distance;//供弹电机控制期望值
+
 /*函数声明*/
 static void shoot_motor_init();
 static rt_int16_t shoot_control_1(dji_motor_measure_t measure);
@@ -101,6 +96,7 @@ static rt_int16_t load_control(dji_motor_measure_t measure);
 static float sht_dt;
 static int ref_rpm_1;//motor 0 1 一级
 static int ref_rpm_2;//motor 2 3 二级
+static int origin_ref1,origin_ref2;
 /**
  * @brief shoot线程入口函数
  */
@@ -116,14 +112,15 @@ void shoot_task_entry(void* argument)
     shoot_cmd.ctrl_mode=SHOOT_STOP;
     shoot_cmd.friction_status = 0;
     LOG_I("Shoot Task Start");
+    ref_rpm_1 = 7000;
     for (;;)
     {
         sht_start = dwt_get_time_ms();
         /* 更新该线程所有的订阅者 */
         shoot_sub_pull();
 
-        shoot_cnt++;
-        shoot_cnt%=1000;
+        // shoot_cnt++;
+        // shoot_cnt%=1000;
 
         /* 电机控制启动 */
         for (uint8_t i = 0; i < SHT_MOTOR_NUM; i++)
@@ -134,47 +131,34 @@ void shoot_task_entry(void* argument)
          // shoot_fdb.trigger_motor_current=sht_motor[TRIGGER_MOTOR]->measure.real_current;
 
         /*subs遥控器*/
-
         switch (shoot_cmd.ctrl_mode)
         {
             case SHOOT_STOP:
                 for(int i=0;i<SHT_MOTOR_NUM;i++) {
                     shoot_motor_ref[i] = 0;
                 }
-                load_ref_rpm = 0;
+                load_ref_rpm = shoot_cmd.load_cmd_rpm;
                 break;
 
-            case SHOOT_ONE:
-                if(shoot_cmd.friction_speed == HIGH_FREQUENCY) {
-                    ref_rpm_1 = 9000;
-                    ref_rpm_2 = 7000;
-                }else if(shoot_cmd.friction_speed == LOW_FREQUENCY) {
-                    /*是否改成宏定义在menuconfig里？*/
-                    if(!debug_mode) {
-                        ref_rpm_1 = 5500;
-                        ref_rpm_2 = 7000;
-                    }else if(debug_mode == 0){
-                        ref_rpm_1 = debug_ref1;
-                        ref_rpm_2 = debug_ref2;
-                    }
-                }
+            case SHOOT_ONE://应该设置为发射一发就停止，连续发射在continue
+            case SHOOT_CONTINUE:
+                    /*16m*/
+                    ref_rpm_1 = 5950;
+                    ref_rpm_2 = 6050;
+                    /*25m*/
+                    // ref_rpm_1 = 8400;
+                    // ref_rpm_2 = 8400;
                 shoot_motor_ref[SHOOT_MOTOR1] = -ref_rpm_1 ;//摩擦轮常转
                 shoot_motor_ref[SHOOT_MOTOR2] = ref_rpm_1;
                 shoot_motor_ref[SHOOT_MOTOR3] = -ref_rpm_2;//摩擦轮常转
                 shoot_motor_ref[SHOOT_MOTOR4] = ref_rpm_2;
-                load_ref_rpm = 0;//拨弹电机上行
-                // shoot_fdb.trigger_status=SHOOT_OK;
+                load_ref_rpm = 4000;//拨弹电机上行
                 break;
             case SHOOT_REVERSE:
                 for(int i=0;i<SHT_MOTOR_NUM;i++) {
                     shoot_motor_ref[i] = 0;
                 }
-                load_ref_rpm = -4000;//拨弹电机下行,要改成角度环
-                // if(load_motor->measure.total_round <= 10) {
-                //     shoot_fdb.load_status == LOAD_BACK_OK;
-                // }else {
-                //     shoot_fdb.load_status == LOAD_BACK_ON;
-                // }
+                load_ref_rpm = -6000;//拨弹电机下行
                 break;
             default:
                 for (uint8_t i = 0; i < SHT_MOTOR_NUM; i++)

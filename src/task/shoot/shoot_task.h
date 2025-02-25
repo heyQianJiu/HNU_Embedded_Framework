@@ -19,26 +19,32 @@ typedef enum
 {
     /*发射模式*/
   SHOOT_STOP=0        ,     //射击关闭
-  SHOOT_ONE=1         ,     //单发模式
-  SHOOT_THREE=2       ,     //三连发模式
-  SHOOT_COUNTINUE=3   ,     //自动射击
-  SHOOT_REVERSE=4     ,     //堵弹反转
-  SHOOT_AUTO=5        ,     //自动发射模式
+  SHOOT_ONE=1         ,     //单发模式（比赛用）
+  SHOOT_CONTINUE=2,         //连续发射（日常用）
+  SHOOT_REVERSE=3     ,     //堵弹反转
+  SHOOT_INIT=4          ,     //初始化,用于堵转到极限以计算位置
+
 } shoot_mode_e;
 /**
  * @brief 扳机模式
  */
 typedef enum
 {
-
     /*扳机状态*/
     TRIGGER_ON=1      ,     //扳机开火状态
     TRIGGER_OFF=0     ,     //扳机闭火状态
     TRIGGER_ING=2     ,     //扳机持续状态
-
 } trigger_mode_e;
 /**
- * @brief 发射弹弹频
+ * @brief debug mode
+ */
+typedef  enum
+{
+    DEBUG_OFF =1,
+    DEBUG_ON =2,
+}debug_mode_e;
+/**
+ * @brief frequency
  */
 typedef enum
 {

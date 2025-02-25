@@ -10,8 +10,6 @@
 #include "rm_algorithm.h"
 #include "rm_module.h"
 #include "rm_task.h"
-// #include "src/modules/rc/sbus/rc_sbus.c"
-#include "src/modules/rc/sbus/rc_sbus.h"
 #define DBG_TAG   "rm.task"
 #define DBG_LVL DBG_INFO
 #include <rtdbg.h>
@@ -122,7 +120,6 @@ static void cmd_sub_pull(void)
     sub_get_msg(sub_chassis,&chassis_fdb);
 }
 
-
 /* ------------------------------ 将遥控器数据转换为控制指令 ----------------------------- */
 /**
  * @brief 将遥控器数据转换为控制指令
@@ -170,29 +167,37 @@ static void remote_to_cmd_sbus(void)
 
     /*--------------------------------------------------发射状态机--------------------------------------------------------------*/
     //ch6 load motor(shoot one在shoot task内实现）
-    //sw2 up(friction on)
-    //sw3 up(friction highspeed)
+    //sw2 up(DEBUG ON)
+    //sw3 up(SHOOT STOP)
     if(rc_now->sw4 == RC_DN) {//不是全局失能状态，允许发射
         switch(rc_now->sw3) {
             case RC_UP://stop
                 shoot_cmd.ctrl_mode = SHOOT_STOP;
-            shoot_cmd.friction_status = 0;
-            break;
-            case RC_MI://shoot one
-                shoot_cmd.ctrl_mode = SHOOT_ONE;
-                switch(rc_now->sw2) {
-                    case RC_UP:
-                        shoot_cmd.friction_speed = HIGH_FREQUENCY;
-                        break;
-                    case RC_DN:
-                        shoot_cmd.friction_speed = LOW_FREQUENCY;
-                        break;
-                }
-                shoot_cmd.friction_status = 1;
-            break;
-            case RC_DN://shoot reverse
-                shoot_cmd.ctrl_mode = SHOOT_REVERSE;
                 shoot_cmd.friction_status = 0;
+                shoot_cmd.load_cmd_rpm = 8000 *(float)( rc_now->ch2) / -784.0;//
+
+            break;
+            case RC_MI://shoot CONTINUE
+                if(shoot_cmd.last_mode == SHOOT_STOP) {//防止从reverse->stop的过程中经过shootone
+                    // shoot_cmd.ctrl_mode = SHOOT_ONE;
+                    switch(rc_now->sw2) {
+                        case RC_UP:
+                            shoot_cmd.ctrl_mode = SHOOT_CONTINUE;
+                        break;
+                        case RC_DN:
+                            shoot_cmd.ctrl_mode = SHOOT_ONE;
+                        break;
+                    }
+                    shoot_cmd.friction_status = 1;
+                    break;
+                }else {
+                    shoot_cmd.ctrl_mode == SHOOT_STOP;
+                    break;
+                }
+            case RC_DN://shoot reverse
+                    shoot_cmd.ctrl_mode = SHOOT_REVERSE;
+                    shoot_cmd.friction_status = 0;
+                    break;
         }
     }
 
@@ -206,8 +211,6 @@ static void remote_to_cmd_sbus(void)
             break;
         case RC_DN:
             break;
-
-
     }
 
 }

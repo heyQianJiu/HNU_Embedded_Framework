@@ -1,10 +1,11 @@
+/*
 #include "keyboard.h"
 #include "rm_module.h"
 #include "rm_algorithm.h"
 
-/* mouse button long press time */
+/* mouse button long press time #1#
 #define LONG_PRESS_TIME  800   //ms
-/* key acceleration time */
+/* key acceleration time #1#
 #define KEY_ACC_TIME     1700  //ms
 
 km_control_t km;
@@ -18,7 +19,7 @@ extern ramp_obj_t *km_vy_ramp;//y周控制斜坡
   * @brief     鼠标按键状态机
   * @param[in] sta: 按键状态指针
   * @param[in] key: 按键键值
-  */
+  #1#
 static void key_fsm(kb_state_e *sta, uint8_t key)
 {
     switch (*sta)
@@ -89,7 +90,7 @@ static void key_fsm(kb_state_e *sta, uint8_t key)
 
 /**
   * @brief     PC 处理键盘鼠标数据函数
-  */
+  #1#
 void PC_Handle_kb(void)
 {
     // if (rc_dbus_obj[0].kb.bit.SHIFT)
@@ -157,3 +158,4 @@ void PC_Handle_kb(void)
     // key_fsm(&km.ctrl_sta, rc_dbus_obj[0].kb.bit.CTRL);
     // key_fsm(&km.v_sta, rc_dbus_obj[0].kb.bit.V);
 }
+*/

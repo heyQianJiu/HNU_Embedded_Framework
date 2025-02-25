@@ -31,12 +31,10 @@
 #ifdef BSP_USING_CHASSIS_TASK
 #include "chassis_task.h"
 #endif /* BSP_USING_CHASSIS_TASK */
-#ifdef BSP_USING_GIMBAL_TASK
-#include "gimbal_task.h"
-#endif /* BSP_USING_GIMBAL_TASK */
-#ifdef BSP_USING_TRANSMISSION_TASK
-#include "transmission_task.h"
-#endif /* BSP_USING_TRANSMISSION_TASK */
+
+// #ifdef BSP_USING_TRANSMISSION_TASK
+// #include "transmission_task.h"
+// #endif /* BSP_USING_TRANSMISSION_TASK */
 #ifdef BSP_USING_SHOOT_TASK
 #include "shoot_task.h"
 #endif /* BSP_USING_SHOOT_TASK */
@@ -88,9 +86,11 @@ struct shoot_cmd_msg
 { // 发射器
     shoot_mode_e ctrl_mode;  // 当前发射器控制模式
     shoot_mode_e last_mode;  // 上一次发射器控制模式
+    float load_cmd_rpm;
 
     rt_bool_t friction_status;
-    shoot_frequency_e friction_speed;//摩擦轮高低转速控制
+
+    // shoot_frequency_e friction_speed;//摩擦轮高低转速控制
 };
 
 
@@ -104,6 +104,9 @@ struct shoot_cmd_msg
      float y_pos_gim;//tobe
      float yaw_degree;
      float pitch_degree;
+     /*堵转电流*/
+     rt_bool_t yaw_overcurrent;
+     rt_bool_t pitch_overcurrent;
      chassis_back_e back_mode;
      chassis_back_e last_mode;
  };

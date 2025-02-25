@@ -9,6 +9,7 @@
 #include "fifo.h"
 #include "BSP_CRC.h"
 #include "rm_task.h"
+#include "drv_msg.h"//突然识别不到publisher_t
 
 static fifo_s_t RX_AgreementData_FIFO;           //实例化的裁判系统接收数据FIFO容器
 static uint8_t RX_FIFO_Space[FIFO_BUF_LENGTH];              //FIFO的实际存储区�?

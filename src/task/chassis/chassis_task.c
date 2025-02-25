@@ -35,10 +35,6 @@ static void chassis_sub_init(void);
 static void chassis_pub_push(void);
 static void chassis_sub_pull(void);
 
-// static float pitch_angle_cal(float total_angle);
-/* -------------------------------- 裁判系统底盘功率相关 ------------------------------- */
-//extern robot_status_t robot_status;
-//extern ext_power_heat_data_t power_heat_data_t;
 /* --------------------------------- 电机控制相关 --------------------------------- */
 
 static struct chassis_controller_t
@@ -48,7 +44,8 @@ static struct chassis_controller_t
 }chassis_controller[CHASSIS_MOTOR_NUM];
 
 static dji_motor_object_t *chassis_motor[CHASSIS_MOTOR_NUM];  // 底盘电机实例
-static int16_t motor_ref_rpm[CHASSIS_MOTOR_NUM]; // 电机控制期望值
+static int16_t motor_ref_rpm[CHASSIS_MOTOR_NUM]; // 电机控制期望rpm
+// static float motor_ref_angle[CHASSIS_MOTOR_NUM]; //电机控制期望angle
 
 static void chassis_motor_init();
 /*定时器初始化*/
@@ -157,7 +154,6 @@ static void chassis_pub_push(void)
 static void chassis_sub_pull(void)
 {
     sub_get_msg(sub_cmd, &chassis_cmd);
-    // sub_get_msg(sub_referee, &referee_fdb);
     sub_get_msg(sub_ins, &ins_data);
 }
 
@@ -169,7 +165,43 @@ static rt_int16_t motor_control_yaw(dji_motor_measure_t measure)
     set =(rt_int16_t) pid_calculate(chassis_controller[YAW_MOTOR].speed_pid, measure.speed_rpm, motor_ref_rpm[YAW_MOTOR]);
     return set;
 }
-
+// static rt_int16_t motor_control_yaw(dji_motor_measure_t measure)
+// {
+//     /* PID局部指针，切换不同模式下PID控制器 */
+//     static pid_obj_t *pid_angle;
+//     static pid_obj_t *pid_speed;
+//     static float get_speed, get_angle;  // 闭环反馈量
+//     static float pid_out_angle;         // 角度环输出
+//     static rt_int16_t send_data;        // 最终发送给电调的数据
+//
+//     /*串级pid，一个角度环和一个速度环*/
+//     pid_speed = chassis_controller[YAW_MOTOR].speed_pid;
+//     pid_angle = chassis_controller[YAW_MOTOR].angle_pid;
+//     get_angle=measure.total_angle;
+//     get_speed=measure.speed_rpm;
+//
+//     /* 切换模式需要清空控制器历史状态 */
+//     if(chassis_cmd.ctrl_mode != chassis_cmd.last_mode)
+//     {
+//         pid_clear(pid_angle);
+//         pid_clear(pid_speed);
+//     }
+//
+//     /*pid计算输出*/
+//     //双环pid,CHASSIS_STOP
+//     if(chassis_cmd.ctrl_mode == CHASSIS_STOP) {
+//         pid_out_angle = (int16_t) pid_calculate(pid_angle, get_angle, motor_ref_rpm[YAW_MOTOR]);  // 编码器增长方向与imu相反
+//         send_data = (int16_t) pid_calculate(pid_speed, get_speed, pid_out_angle);     // 电机转动正方向与imu相反
+//
+//     }
+//     //单环pid,CHASSIS OPEN LOOP
+//     else if(chassis_cmd.ctrl_mode==CHASSIS_OPEN_LOOP)//，只用速度环
+//     {
+//         send_data = (int16_t) pid_calculate(pid_speed, get_speed, motor_ref_rpm[YAW_MOTOR] );
+//     }
+//     // VAL_LIMIT(gim_motor_ref[PITCH], PIT_ANGLE_MIN, PIT_ANGLE_MAX);
+//     return send_data;
+// }
 static rt_int16_t motor_control_pitch(dji_motor_measure_t measure)
 {
     static rt_int16_t set = 0;
@@ -182,7 +214,6 @@ static void *motor_control[2] =
 {
     motor_control_yaw,
     motor_control_pitch,
-
 };
 
 motor_config_t chassis_motor_config[2] =
@@ -205,11 +236,15 @@ motor_config_t chassis_motor_config[2] =
  */
 static void chassis_motor_init()
 {
+    /*yaw*/
     pid_config_t yaw_speed_config = INIT_PID_CONFIG(YAW_KP_V, YAW_KI_V, YAW_KD_V, YAW_INTEGRAL_V, YAW_MAX_V,
                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    // pid_config_t yaw_angle_config = INIT_PID_CONFIG(YAW_KP_V, YAW_KI_V, YAW_KD_V, YAW_INTEGRAL_V, YAW_MAX_V,
+    //                                                     (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
     chassis_controller[YAW_MOTOR].speed_pid = pid_register(&yaw_speed_config);
+    // chassis_controller[YAW_MOTOR].angle_pid = pid_register(&yaw_angle_config);
     chassis_motor[YAW_MOTOR] = dji_motor_register(&chassis_motor_config[YAW_MOTOR], motor_control[YAW_MOTOR]);
-
+    /*pitch*/
     pid_config_t pitch_speed_config = INIT_PID_CONFIG(PITCH_KP_V, PITCH_KI_V, PITCH_KD_V, PITCH_INTEGRAL_V, PITCH_MAX_V,
                                                             (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
     chassis_controller[PITCH_MOTOR].speed_pid = pid_register(&pitch_speed_config);
@@ -229,10 +264,10 @@ static void chassis_motor_init()
 static rt_err_t timeout_cb(rt_device_t dev, rt_size_t size)
 {
 
-    /*暂时写在这里*/
-    yaw_angle = chassis_motor[YAW_MOTOR]->measure.total_angle * YAW_GEAR_RATIO;// 总角度 * 减速比 = 实际角度,正为顺时针,负为逆时针
-    // pitch_angle = pitch_angle_cal(chassis_motor[PITCH_MOTOR]->measure.total_angle);
-    chassis_fdb.yaw_degree = yaw_angle;
+    // /*暂时写在这里*/
+    // yaw_angle = chassis_motor[YAW_MOTOR]->measure.total_angle * YAW_GEAR_RATIO;// 总角度 * 减速比 = 实际角度,正为顺时针,负为逆时针
+    // // pitch_angle = pitch_angle_cal(chassis_motor[PITCH_MOTOR]->measure.total_angle);
+    chassis_fdb.yaw_degree = yaw_angle;//直接读取ins数据
     chassis_fdb.pitch_degree = pitch_angle;
     /*这两行不能注释，否则进死循环*/
     chassis_fdb.x_pos_gim=x_cos_w + x_sin_w;
@@ -240,26 +275,7 @@ static rt_err_t timeout_cb(rt_device_t dev, rt_size_t size)
     /*这两行不能注释，否则进死循环*/
     return 0;
 }
-// static float pitch_angle_cal(float total_angle)
-// {
-//     // float rad;
-//     // float screw_distance;
-//     // float total_distance;
-//     // // float temp_angle;
-//     // screw_distance = total_angle * PITCH_GEAR_RATIO * ANGLE_TO_DISTANCE;
-//     // abs_limit(screw_distance, SCREW_LEN);
-//     // if(screw_distance < 0)screw_distance = 0;
-//     // total_distance = BOTTOM_POLE_LEN + screw_distance;
-//     // rad = acos( (SQUARE_ABOVE_POLE_LEN + SQUARE(total_distance) - SQUARE_HEIGHT_LEN) / (DOUBLE_ABOVE_POLE_LEN * total_distance) );
-//     // // if( rad<-1)rad = -1;
-//     // // if(rad >1)rad = 1;
-//     // // temp_angle = rad * PI / 180.0f;
-//     //
-//     // // rad * PI / 180.0f;//转化为角度
-//     // // return rad;//转化为角度
-//     return 0;
-//
-// }
+
 int TIM_Init(void)
 {
     rt_err_t ret = RT_EOK;

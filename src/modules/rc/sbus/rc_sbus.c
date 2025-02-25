@@ -70,12 +70,12 @@ static rt_err_t sbus_rc_decode(uint8_t *buff){
         rc_obj[NOW].sw3=((buff[12] | buff[13] << 8) & 0x07FF);
         rc_obj[NOW].sw4 =((buff[13] >> 3 | buff[14] << 5) & 0x07FF);
         /* 遥控器异常值处理，函数直接返回 */
-        if ((abs(rc_obj[NOW].ch1) > RC_MAX_VALUE) || \
-        (abs(rc_obj[NOW].ch2) > RC_MAX_VALUE) || \
-        (abs(rc_obj[NOW].ch3) > RC_MAX_VALUE) || \
-        (abs(rc_obj[NOW].ch4) > RC_MAX_VALUE) || \
-        (abs(rc_obj[NOW].ch5) > RC_MAX_VALUE) || \
-        (abs(rc_obj[NOW].ch6) > RC_MAX_VALUE))
+        if ((abs(rc_obj[NOW].ch1) > RC_SBUS_MAX_VALUE) || \
+        (abs(rc_obj[NOW].ch2) > RC_SBUS_MAX_VALUE) || \
+        (abs(rc_obj[NOW].ch3) > RC_SBUS_MAX_VALUE) || \
+        (abs(rc_obj[NOW].ch4) > RC_SBUS_MAX_VALUE) || \
+        (abs(rc_obj[NOW].ch5) > RC_SBUS_MAX_VALUE) || \
+        (abs(rc_obj[NOW].ch6) > RC_SBUS_MAX_VALUE))
         {
             memset(&rc_obj[NOW], 0, sizeof(rc_obj_t));
             return -RT_ERROR;
@@ -90,6 +90,9 @@ static rt_err_t sbus_rc_decode(uint8_t *buff){
  */
 static void rc_lost_callback(void *paramete)
 {
+    // rt_memset(&rc_obj[NOW], 0, sizeof(rc_obj[NOW]));
+    // rc_obj[NOW].sw1 = 1;
+    // rc_obj[NOW].sw2 = 1;
     LOG_W("Sbus RC lost!");
 }
 
